@@ -24,11 +24,11 @@ jobs:
           
       - name: Checkout build patch
         run: |
-          git clone https://github.com/hxbb00/zetasql-build.git /_work2
+          git clone https://github.com/hxbb00/zetasql-build.git _work_patch
   
       - name: copy patch
         run: |
-          cp -rf /_work2/*.sh .
+          cp -rf _work_patch/*.sh .
         
       - name: Setup gcc-9
         run: |
@@ -50,7 +50,7 @@ jobs:
 
       - name: Setup Android SDK via sdkmanager
         run: |
-          sdkmanager tools "platforms;android-29" "platforms;android-30"
+          sdkmanager tools "platforms;android-30"
   
       - name: Setup Bazel
         uses: abhinavsingh/setup-bazel@v3
@@ -97,12 +97,12 @@ jobs:
       - name: Checkout build patch
         shell: cmd
         run: |
-          git clone https://github.com/hxbb00/zetasql-build.git C:\_work2
+          git clone https://github.com/hxbb00/zetasql-build.git C:\_work_patch
   
       - name: copy patch
         shell: bash
         run: |
-          cp -rf C:/_work2/*.sh .
+          cp -rf C:/_work_patch/*.sh .
 
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -117,7 +117,7 @@ jobs:
 
       - name: Setup Android SDK via sdkmanager
         run: |
-          sdkmanager tools "platforms;android-29" "platforms;android-30"
+          sdkmanager tools "platforms;android-30"
           
       - name: Setup Bazel
         uses: abhinavsingh/setup-bazel@v3
