@@ -1,0 +1,203 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Build-4paradigm
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master, feat/hybridse-zetasql]
+    tags:
+      - v*
+  pull_request:
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  centos-build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/aceforeverd/hybridsql-base:0.4.0
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Bazel
+        run: |
+          curl --create-dirs -SLo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.10.1/bazelisk-linux-amd64
+          chmod +x /usr/local/bin/bazel
+
+      - name: Install Java
+        run: |
+          yum install -y java-1.8.0-openjdk-devel
+
+      - name: build zetasql parser
+        run: |
+          source /opt/rh/devtoolset-8/enable
+          source /opt/rh/rh-python38/enable
+          ./build_zetasql_parser.sh
+
+      - name: Determine Version
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(echo $VERSION | sed -e 's/^v//')
+          echo "TAG=$VERSION" >> $GITHUB_ENV
+
+      - name: pack libzetasql
+        run: |
+          ./pack_zetasql.sh -d centos
+        env:
+          TAG: ${{ env.TAG }}
+
+      - name: Upload Artifacts
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v2
+        with:
+          path: libzetasql-*.tar.gz
+          name: release-artifacts
+
+  ubuntu-build:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+    steps:
+      - name: setup dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl build-essential unzip python3-dev git
+          update-alternatives --install /usr/bin/python python /usr/bin/python3 100
+
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt' # See 'Supported distributions' for available options
+          java-version: '8'
+
+      - name: Setup Bazel
+        run: |
+          curl --create-dirs -SLo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.10.1/bazelisk-linux-amd64
+          chmod +x /usr/local/bin/bazel
+
+      - name: build zetasql parser
+        run: |
+          ./build_zetasql_parser.sh
+
+      - name: Determine Version
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(echo $VERSION | sed -e 's/^v//')
+          echo "TAG=$VERSION" >> $GITHUB_ENV
+
+      - name: pack libzetasql
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+          ./pack_zetasql.sh -d ubuntu
+        env:
+          TAG: ${{ env.TAG }}
+
+      - name: Upload Artifacts
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v2
+        with:
+          path: libzetasql-*.tar.gz
+          name: release-artifacts
+
+  macos-build:
+    runs-on: macos-12
+    timeout-minutes: 120
+    env:
+      bazel_version: '3.7.2'
+    steps:
+      - uses: actions/checkout@v3
+
+      # xcode 14.0.1 comes with macOS SDK 12.3, ref https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md#installed-sdks
+      # so pre-compile zetasql requires macOS >= 12.3
+      - name: Xcode Select Version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '14.0.1'
+
+      # https://github.com/actions/runner-images/issues/8952#issuecomment-1910396143
+      - name: Setup Android SDK 27, 28, 29 and 30
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 9123335
+      - name: Setup Android SDK via sdkmanager
+        run: |
+          sdkmanager tools "platforms;android-27" "platforms;android-28" "platforms;android-29" "platforms;android-30"
+
+      - name: update bazel version
+        run: echo ${{ env.bazel_version }} > .bazelversion
+
+      - name: setup python3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: install bazelisk
+        run: |
+          brew install bazelisk
+
+      - name: install utils tools
+        run: |
+          brew install coreutils
+          brew install binutils
+
+      - name: build
+        run: |
+          ./build_zetasql_parser.sh
+
+      - name: Determine Version
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(echo $VERSION | sed -e 's/^v//')
+          echo "TAG=$VERSION" >> $GITHUB_ENV
+
+      - name: pack libzetasql
+        run: |
+          ./pack_zetasql.sh
+        env:
+          TAG: ${{ env.TAG }}
+
+      - name: verbose build info
+        # checkout the 'minos' and 'sdk' info
+        run: |
+          otool -l $(echo libzetasql-*/)/lib/libicudata.a | grep -A 20 LC_BUILD_VERSION
+
+      - name: Upload Artifacts
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v2
+        with:
+          path: libzetasql-*.tar.gz
+          name: release-artifacts
+
+  release:
+    runs-on: ubuntu-latest
+    needs: ["centos-build", "ubuntu-build", "macos-build"]
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 120
+    steps:
+      - name: Download Release Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: release-artifacts
+
+      - name: generate signature
+        run: |
+          sha256sum libzetasql-*.tar.gz > SHA256SUM
+
+      - name: Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            libzetasql-*.tar.gz
+            SHA256SUM
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
