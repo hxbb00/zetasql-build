@@ -50,12 +50,12 @@ jobs:
 
       - name: Setup Android SDK via sdkmanager
         run: |
-          sdkmanager tools "platforms;android-30"
+          sdkmanager tools "platforms;android-29" "platforms;android-30"
   
       - name: Setup Bazel
         uses: abhinavsingh/setup-bazel@v3
         with:
-          version: 6.2.0
+          version: 6.5.0
           
       - name: Use Bazel
         if: matrix.os != 'windows'
@@ -117,12 +117,12 @@ jobs:
 
       - name: Setup Android SDK via sdkmanager
         run: |
-          sdkmanager tools "platforms;android-30"
+          sdkmanager tools "platforms;android-29" "platforms;android-30"
           
       - name: Setup Bazel
         uses: abhinavsingh/setup-bazel@v3
         with:
-          version: 6.2.0
+          version: 6.5.0
         
       - name: Use Bazel (Windows only)
         shell: bash
