@@ -1,7 +1,8 @@
 name: Build
 on:
   workflow_dispatch:
-  
+permissions:
+  contents: write
 env:
   cache-version: v1.0.3
 
@@ -10,6 +11,11 @@ jobs:
     name: build and test on Linux
     runs-on: ubuntu-latest
     steps:
+      - name: set release date
+        shell: bash
+        run: |
+          echo "RELEASE_DATE=$(date '+%Y%m%d%H%M%S')" >> ${GITHUB_ENV}
+
       - name: Checkout zetasql repository
         uses: actions/checkout@v4
         with:
@@ -37,12 +43,29 @@ jobs:
 
       - name: build
         run: |
-          bazel build ...
+          ./build_zetasql_parser.sh
 
-  macos:
+      - name: pack libzetasql
+        run: |
+          ./pack_zetasql.sh -d ubuntu
+        env:
+          TAG: ${{ env.RELEASE_DATE }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: libzetasql-*.tar.gz
+          name: release-artifacts
+
+  windows:
     name: build and test on windows
     runs-on: windows-latest
     steps:
+      - name: set release date
+        shell: bash
+        run: |
+          echo "RELEASE_DATE=$(date '+%Y%m%d%H%M%S')" >> ${GITHUB_ENV}
+
       - name: Checkout zetasql repository
         uses: actions/checkout@v4
         with:
@@ -64,4 +87,17 @@ jobs:
       - name: build
         shell: bash
         run: |
-          ./bazel.exe build ...
+          ./build_zetasql_parser.sh
+
+      - name: pack libzetasql
+        shell: bash
+        run: |
+          ./pack_zetasql.sh -d windows
+        env:
+          TAG: ${{ env.RELEASE_DATE }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: libzetasql-*.zip
+          name: release-artifacts
