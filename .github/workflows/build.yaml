@@ -22,8 +22,13 @@ jobs:
           repository: 'google/zetasql'
           fetch-depth: 0
           
-      - name: Checkout the repository
-        uses: actions/checkout@v4
+      - name: Checkout build patch
+        run: |
+          git clone https://github.com/hxbb00/zetasql-build.git C:\_work2
+  
+      - name: copy patch
+        run: |
+          cp -rf C:/_work2/*.sh .
         
       - name: Setup gcc-9
         run: |
@@ -74,8 +79,15 @@ jobs:
           repository: 'google/zetasql'
           fetch-depth: 0
           
-      - name: Checkout the repository
-        uses: actions/checkout@v4
+      - name: Checkout build patch
+        shell: cmd
+        run: |
+          git clone https://github.com/hxbb00/zetasql-build.git C:\_work2
+  
+      - name: copy patch
+        shell: bash
+        run: |
+          cp -rf C:/_work2/*.sh .
           
       - name: Setup Bazel
         uses: abhinavsingh/setup-bazel@v3
