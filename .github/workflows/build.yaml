@@ -52,7 +52,7 @@ jobs:
           version: 6.2.0
         
       - name: Use Bazel (Windows only)
-        shell: cmd
+        shell: bash
         run: ./bazel.exe -h
 
       - name: build
