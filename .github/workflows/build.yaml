@@ -43,10 +43,12 @@ jobs:
 
       - name: build
         run: |
+          chmod +x build_zetasql_parser.sh
           ./build_zetasql_parser.sh
 
       - name: pack libzetasql
         run: |
+          chmod +x pack_zetasql.sh
           ./pack_zetasql.sh -d ubuntu
         env:
           TAG: ${{ env.RELEASE_DATE }}
@@ -82,22 +84,9 @@ jobs:
         
       - name: Use Bazel (Windows only)
         shell: bash
-        run: ./bazel.exe -h
+        run: bazel.exe -h
 
       - name: build
         shell: bash
         run: |
           ./build_zetasql_parser.sh
-
-      - name: pack libzetasql
-        shell: bash
-        run: |
-          ./pack_zetasql.sh -d windows
-        env:
-          TAG: ${{ env.RELEASE_DATE }}
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          path: libzetasql-*.zip
-          name: release-artifacts
